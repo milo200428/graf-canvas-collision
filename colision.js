@@ -1,110 +1,94 @@
 const canvas = document.getElementById("gameCanvas");
-let ctx = canvas.getContext("2d");
+const ctx = canvas.getContext("2d");
 
-// Obtiene las dimensiones de la pantalla actual
-const window_height = window.innerHeight;
-const window_width = window.innerWidth;
-
-canvas.height = window_height;
-canvas.width = window_width;
-
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 canvas.style.background = "#ff8";
 
+let score = 0;
+let circles = [];
+
 class Circle {
-    constructor(x, y, radius, color, text, speed) {
+    constructor(x, radius, color, text, speed) {
         this.posX = x;
-        this.posY = y;
+        this.posY = -radius;
         this.radius = radius;
         this.color = color;
-        this.originalColor = color;
         this.text = text;
         this.speed = speed;
-        
-        this.dx = (Math.random() < 0.5 ? -1 : 1) * this.speed;
-        this.dy = (Math.random() < 0.5 ? -1 : 1) * this.speed;
-    }
-
-    checkCollision(other) {
-        let dx = this.posX - other.posX;
-        let dy = this.posY - other.posY;
-        let distance = Math.sqrt(dx * dx + dy * dy);
-        return distance < this.radius + other.radius;
-    }
-
-    handleCollision(other) {
-        let tempDx = this.dx;
-        let tempDy = this.dy;
-        this.dx = other.dx;
-        this.dy = other.dy;
-        other.dx = tempDx;
-        other.dy = tempDy;
-        
-        this.color = "#0000FF";
-        other.color = "#0000FF";
-        setTimeout(() => {
-            this.color = this.originalColor;
-            other.color = other.originalColor;
-        }, 200);
     }
 
     draw(context) {
         context.beginPath();
-        context.strokeStyle = this.color;
-        context.textAlign = "center";
-        context.textBaseline = "middle";
-        context.font = "20px Arial";
-        context.fillText(this.text, this.posX, this.posY);
+        context.arc(this.posX, this.posY, this.radius, 0, Math.PI * 2);
+        context.fillStyle = this.color;
+        context.fill();
+        context.strokeStyle = "#000";
         context.lineWidth = 2;
-        context.arc(this.posX, this.posY, this.radius, 0, Math.PI * 2, false);
         context.stroke();
         context.closePath();
+        
+        context.fillStyle = "#000";
+        context.font = "14px Arial";
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillText(this.text, this.posX, this.posY);
     }
 
-    update(context) {
-        this.draw(context);
-        
-        this.posX += this.dx;
-        if (this.posX + this.radius > window_width || this.posX - this.radius < 0) {
-            this.dx = -this.dx;
+    update() {
+        this.posY += this.speed;
+        if (this.posY - this.radius > canvas.height) {
+            this.posY = -this.radius;
+            this.posX = Math.random() * (canvas.width - this.radius * 2) + this.radius;
         }
+    }
 
-        this.posY += this.dy;
-        if (this.posY + this.radius > window_height || this.posY - this.radius < 0) {
-            this.dy = -this.dy;
-        }
+    containsPoint(x, y) {
+        return Math.sqrt((x - this.posX) ** 2 + (y - this.posY) ** 2) < this.radius;
     }
 }
 
-let circles = [];
-
-function generateCircles(n) {
-    for (let i = 0; i < n; i++) {
+function generateCircles() {
+    setInterval(() => {
         let radius = Math.random() * 30 + 20;
-        let x = Math.random() * (window_width - radius * 2) + radius;
-        let y = Math.random() * (window_height - radius * 2) + radius;
+        let x = Math.random() * (canvas.width - radius * 2) + radius;
         let color = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
-        let speed = Math.random() * 4 + 1; // Velocidad entre 1 y 5
-        let text = `C${i + 1}`;
-        circles.push(new Circle(x, y, radius, color, text, speed));
-    }
+        let speed = Math.random() * 4 + 1;
+        let text = `C${circles.length + 1}`;
+        circles.push(new Circle(x, radius, color, text, speed));
+    }, 500); // Genera un nuevo círculo cada 500ms
+}
+
+function drawScore() {
+    ctx.fillStyle = "#000";
+    ctx.font = "20px Arial";
+    ctx.textAlign = "right";
+    ctx.fillText(`Eliminados: ${score}`, canvas.width - 20, 30);
 }
 
 function animate() {
-    ctx.clearRect(0, 0, window_width, window_height);
-    
-    for (let i = 0; i < circles.length; i++) {
-        let circle = circles[i];
-        circle.update(ctx);
-        
-        for (let j = i + 1; j < circles.length; j++) {
-            if (circle.checkCollision(circles[j])) {
-                circle.handleCollision(circles[j]);
-            }
-        }
-    }
-    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    circles.forEach(circle => {
+        circle.update();
+        circle.draw(ctx);
+    });
+    drawScore();
     requestAnimationFrame(animate);
 }
 
-generateCircles(10);
+canvas.addEventListener("click", function(event) {
+    let mouseX = event.clientX;
+    let mouseY = event.clientY;
+    let initialLength = circles.length;
+    
+    circles = circles.filter(circle => !circle.containsPoint(mouseX, mouseY));
+    
+    if (circles.length < initialLength) {
+        score++;
+    }
+});
+
+generateCircles();
 animate();
+
+// Archivo: colision.js
